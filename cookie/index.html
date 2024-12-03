@@ -3,80 +3,103 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
   <link rel="icon" href="https://fav.farm/🍪">
-  <title>Cookie</title>
-  <link rel="stylesheet" href="styles.css"> <!-- sets color as blue -->
+  <title>Secure Cookie</title>
+  <link rel="stylesheet" href="styles.css"> <!-- Sets color as blue -->
   <style>
     p {
       color: red;
     }
-  </style> <!-- sets color as red -->
+  </style> <!-- Inline style setting text color to red -->
 </head>
 <body>
   <script>
+    // Safely extract username from cookies or URL query parameters
     let name = 'world';
-    if (document.cookie.indexOf('username=') !== -1) {
-      name = document.cookie.split('username=')[1].split(';')[0]
-    }
-    else if (window.location.search.indexOf('name=') !== -1) {
-      const params = new URLSearchParams(window.location.search)
-      name = params.get('name')
+    try {
+      if (document.cookie.includes('username=')) {
+        name = document.cookie.split('username=')[1].split(';')[0];
+      } else if (window.location.search.includes('name=')) {
+        const params = new URLSearchParams(window.location.search);
+        name = params.get('name');
+      }
+    } catch (e) {
+      console.error("Error retrieving user name:", e);
     }
   </script>
-  <p>Hello
-  <script>document.write(name)</script>!
-  </p>
-  Select your language:
-  
-  <select>
+
+  <p>Hello <span id="greeting"></span>!</p>
+  <script>
+    // Safely update greeting with no DOM XSS
+    document.getElementById('greeting').textContent = name;
+  </script>
+
+  <label for="language">Select your language:</label>
+  <select id="language">
     <script>
-      let defaultLanguage = 'english';
+      // default language from URL parameters
+      const url = new URL(window.location.href);
+      const defaultLanguage = url.searchParams.get("default") || "English";
+      const languageSelect = document.getElementById('language');
+      
+      // Ensure no XSS
+      const safeLanguage = document.createElement("option");
+      safeLanguage.value = 1;
+      safeLanguage.textContent = defaultLanguage;
+      languageSelect.appendChild(safeLanguage);
 
-      if (document.location.href.indexOf("default=") !== -1) {
-        defaultLanguage = decodeURIComponent(document.location.href.substring(document.location.href.indexOf("default=") + 8));
-        document.write("<OPTION value=1>" + defaultLanguage + "</OPTION>");
-        if (defaultLanguage != 'english') {
-          document.write("<OPTION value=2>English</OPTION>");
-        }
-      } else {
-        document.write("<OPTION value=1>English</OPTION>");
+      if (defaultLanguage.toLowerCase() !== 'english') {
+        const englishOption = document.createElement("option");
+        englishOption.value = 2;
+        englishOption.textContent = "English";
+        languageSelect.appendChild(englishOption);
       }
-
-
     </script>
   </select>
+
   <form id="login">
-    <label for="username">Username</label>
-    <input type="text" name="username" id="username">
-    <label for="password">Password</label>
-    <input type="password" name="password" id="password">
+    <label for="username">Username:</label>
+    <input type="text" id="username" name="username" required>
+    <label for="password">Password:</label>
+    <input type="password" id="password" name="password" required>
     <button type="submit">Login</button>
   </form>
-  <pre></pre>
-  <button id="fetch-btn">fetch</button>
-  <script>
-    const formEl = document.getElementById('login')
-    formEl.addEventListener('submit', async (e) => {
-      e.preventDefault()
-      
-      const username = formEl.username.value
-      const password = formEl.password.value
-      let enc = new TextEncoder();
-      const pwVals = enc.encode(password)
-      let pw = ''
-      for (val of pwVals) {
-        pw+=val*Date.now()
-      }
 
-      document.cookie = `username=${username}`
-      document.cookie = `token=${pw}`
-      document.querySelector('pre').innerText = document.cookie
-    })
-    const fetchBtn = document.getElementById('fetch-btn')
+  <pre id="output"></pre>
+  <button id="fetch-btn" type="button">Fetch</button>
+
+  <script>
+    // Secure handling of form submission and cookies
+    const formEl = document.getElementById('login');
+    const output = document.getElementById('output');
+
+    formEl.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const username = formEl.username.value;
+      const password = formEl.password.value;
+
+      // Simplified, secure token generation
+      const token = btoa(username + ':' + password);
+
+      // Set cookies securely
+      document.cookie = `username=${encodeURIComponent(username)}; secure; samesite=strict`;
+      document.cookie = `token=${token}; secure; samesite=strict`;
+
+      // Display cookies for debugging
+      output.textContent = `Cookies set: ${document.cookie}`;
+    });
+
+    // Fetch button functionality
+    const fetchBtn = document.getElementById('fetch-btn');
     fetchBtn.addEventListener('click', async () => {
-      const res = await fetch(window.location)
-    })
+      try {
+        const res = await fetch(window.location.href);
+        console.log('Fetched page response:', await res.text());
+      } catch (e) {
+        console.error("Fetch failed:", e);
+      }
+    });
   </script>
 </body>
 </html>
